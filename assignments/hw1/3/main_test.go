@@ -40,8 +40,8 @@ func TestFilterCharsAndNormalize(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"Hello123😎❤️😁😂🤣", "hello123      "},
-		{"Hello, World!", "hello  world "},
+		{"Hello123😎❤️😁😂🤣", "hello123 "},
+		{"Hello, World!", "hello world "},
 		{"UPPER lower", "upper lower"},
 	}
 
@@ -101,15 +101,15 @@ func TestSortFreqs(t *testing.T) {
 		"world": 2,
 		"test":  4,
 	}
-	result := sort(wordFreqs)
+	result := sortFreqs(wordFreqs)
 
 	expected := [][2]interface{}{
-		{"world", 2},
-		{"hello", 3},
 		{"test", 4},
+		{"hello", 3},
+		{"world", 2},
 	}
 
 	if !reflect.DeepEqual(result, expected) {
-		t.Errorf("sortFreqs() got %v; want %v", wordFreqs, expected)
+		t.Errorf("sortFreqs() got %v; want %v", result, expected)
 	}
 }
