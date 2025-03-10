@@ -34,7 +34,6 @@ func removeStopWords(wordList []string) []string {
 		panic(err)
 	}
 	stopWords := strings.Split(string(content), ",")
-	stopWords = append(stopWords, make([]string, 26)...)
 	for c := 'a'; c <= 'z'; c++ {
 		stopWords = append(stopWords, string(c))
 	}
