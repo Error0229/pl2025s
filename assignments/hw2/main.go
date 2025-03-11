@@ -14,9 +14,14 @@ type TFExercise struct {
 }
 
 func (tfe *TFExercise) Info() string {
-	return fmt.Sprintf("%s: My major data structure is a %s",
-		tfe.TypeName,
-		tfe.DataStructure)
+	result := ""
+	if tfe.TypeName != "" {
+		result += tfe.TypeName
+	}
+	if tfe.DataStructure != "" {
+		result += ": My major data structure is a " + tfe.DataStructure
+	}
+	return result
 }
 
 type DataStorageManager struct {
@@ -104,6 +109,9 @@ func (wfm *WordFrequencyManager) Sorted() [][2]any {
 		freqPairs = append(freqPairs, [2]any{word, freq})
 	}
 	sort.Slice(freqPairs, func(i, j int) bool {
+		if freqPairs[i][1].(int) == freqPairs[j][1].(int) {
+			return freqPairs[i][0].(string) < freqPairs[j][0].(string)
+		}
 		return freqPairs[i][1].(int) > freqPairs[j][1].(int)
 	})
 	return freqPairs
@@ -113,6 +121,7 @@ type WordFrequencyController struct {
 	storageManager  *DataStorageManager
 	stopWordManager *StopWordManager
 	wordFreqManager *WordFrequencyManager
+	TFExercise
 }
 
 func NewWordFrequencyController(pathToFile string) (*WordFrequencyController, error) {
@@ -132,6 +141,9 @@ func NewWordFrequencyController(pathToFile string) (*WordFrequencyController, er
 		storageManager:  storageManager,
 		stopWordManager: stopWordManager,
 		wordFreqManager: wordFreqManager,
+		TFExercise: TFExercise{
+			TypeName: "WordFrequencyController",
+		},
 	}, nil
 }
 
@@ -142,8 +154,9 @@ func (wfc *WordFrequencyController) Run() {
 		}
 	}
 	wordFreqs := wfc.wordFreqManager.Sorted()
-	for _, pair := range wordFreqs[:25] {
-		fmt.Printf("%s  -  %d\n", pair[0].(string), pair[1].(int))
+	limit := min(25, len(wordFreqs))
+	for _, pair := range wordFreqs[:limit] {
+		fmt.Printf("%s - %d\n", pair[0].(string), pair[1].(int))
 	}
 }
 
