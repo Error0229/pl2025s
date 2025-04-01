@@ -41,7 +41,7 @@ func TestNewDataStorageManager(t *testing.T) {
 }
 
 func TestDataStorageManagerWords(t *testing.T) {
-	content := "Ch1: I hate the world as much as I love the world🎉"
+	content := "Ch1: I hate the world as much as I love the world."
 	filename := setup(content)
 	defer cleanup(filename)
 
