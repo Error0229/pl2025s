@@ -62,16 +62,16 @@ expand( _, Tree, Bound, Tree, no, _)  :-
 
 % continue( Path, Tree, Bound, NewTree, SubtreeSolved, TreeSolved, Solution)
 
-continue( _, _, _, _, yes, yes, Sol) :- !.
+continue(_, _, _, _, yes, yes, _) :- !.
 
-continue( P, t(N,F/G,[T1|Ts]), Bound, Tree1, no, Solved, Sol) :- !,
-  insert( T1, Ts, NTs),
-  bestf( NTs, F1),
-  expand( P, t(N,F1/G,NTs), Bound, Tree1, Solved, Sol).
+continue(P, t(N,_/G,[T1|Ts]), Bound, Tree1, no, Solved, Sol) :- !,
+  insert(T1, Ts, NTs),
+  bestf(NTs, F1),
+  expand(P, t(N,F1/G,NTs), Bound, Tree1, Solved, Sol).
 
-continue( P, t(N,F/G,[_|Ts]), Bound, Tree1, never, Solved, Sol) :- !,
-  bestf( Ts, F1),
-  expand( P, t(N,F1/G,Ts), Bound, Tree1, Solved, Sol).
+continue(P, t(N,_/G,[_|Ts]), Bound, Tree1, never, Solved, Sol) :- !,
+  bestf(Ts, F1),
+  expand(P, t(N,F1/G,Ts), Bound, Tree1, Solved, Sol).
 
 % succlist( G0, [ Node1/Cost1, ...], [ l(BestNode,BestF/G), ...]):
 %   make list of search leaves ordered by their F-values
@@ -106,10 +106,8 @@ bestf( [T|_], F)  :-    % Best f-value of a list of trees
 
 bestf( [], 9999).       % No trees: bad f-value
   
-min( X, Y, X)  :-
-  X  =<  Y, !.
-
-min( X, Y, Y).
+min(X, Y, X) :- X =< Y, !.
+min(_, Y, Y).
 
 % Helper predicate
 record_node(Node) :-
