@@ -1,20 +1,18 @@
-package main
+package hw7
 
 import (
 	"image"
 	"image/color"
-	"image/png"
 	"math/cmplx"
-	"os"
 	"runtime"
 	"sync"
 )
 
 var workerCount = runtime.NumCPU()
 
-const usePixelJobs = false
-
-func main() {
+// Render computes a Mandelbrot image using either pixel or row based jobs.
+// It returns the generated image for benchmarking purposes.
+func Render(usePixelJobs bool) *image.RGBA {
 	const (
 		xmin, ymin, xmax, ymax = -2, -2, +2, +2
 		width, height          = 1024, 1024
@@ -28,14 +26,26 @@ func main() {
 		renderRows(img, xmin, ymin, xmax, ymax, width, height)
 	}
 
-	file, err := os.Create("mandelbrot.png")
-	if err != nil {
-		panic(err)
+	return img
+}
+
+// RenderSequential performs the Mandelbrot computation using a single
+// goroutine. It mirrors the original implementation for baseline timings.
+func RenderSequential() *image.RGBA {
+	const (
+		xmin, ymin, xmax, ymax = -2, -2, +2, +2
+		width, height          = 1024, 1024
+	)
+
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	for py := 0; py < height; py++ {
+		y := float64(py)/height*(ymax-ymin) + ymin
+		for px := 0; px < width; px++ {
+			x := float64(px)/width*(xmax-xmin) + xmin
+			img.Set(px, py, mandelbrot(complex(x, y)))
+		}
 	}
-	defer file.Close()
-	if err := png.Encode(file, img); err != nil {
-		panic(err)
-	}
+	return img
 }
 
 func renderRows(img *image.RGBA, xmin, ymin, xmax, ymax float64, width, height int) {
