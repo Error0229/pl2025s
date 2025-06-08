@@ -1,10 +1,3 @@
-// Copyright © 2016 Alan A. A. Donovan & Brian W. Kernighan.
-// License: https://creativecommons.org/licenses/by-nc-sa/4.0/
-
-// See page 61.
-//!+
-
-// Mandelbrot emits a PNG image of the Mandelbrot fractal.
 package main
 
 import (
@@ -13,7 +6,13 @@ import (
 	"image/png"
 	"math/cmplx"
 	"os"
+	"runtime"
+	"sync"
 )
+
+var workerCount = runtime.NumCPU()
+
+const usePixelJobs = false
 
 func main() {
 	const (
@@ -22,17 +21,13 @@ func main() {
 	)
 
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
-	for py := 0; py < height; py++ {
-		y := float64(py)/height*(ymax-ymin) + ymin
-		for px := 0; px < width; px++ {
-			x := float64(px)/width*(xmax-xmin) + xmin
-			z := complex(x, y)
-			// Image point (px, py) represents complex value z.
-			img.Set(px, py, mandelbrot(z))
-		}
+
+	if usePixelJobs {
+		renderPixels(img, xmin, ymin, xmax, ymax, width, height)
+	} else {
+		renderRows(img, xmin, ymin, xmax, ymax, width, height)
 	}
-	// png.Encode(os.Stdout, img) // NOTE: ignoring errors
-	// save the image to a file instead
+
 	file, err := os.Create("mandelbrot.png")
 	if err != nil {
 		panic(err)
@@ -41,6 +36,57 @@ func main() {
 	if err := png.Encode(file, img); err != nil {
 		panic(err)
 	}
+}
+
+func renderRows(img *image.RGBA, xmin, ymin, xmax, ymax float64, width, height int) {
+	w := float64(width)
+	h := float64(height)
+	rows := make(chan int, height)
+	var wg sync.WaitGroup
+	wg.Add(workerCount)
+	for i := 0; i < workerCount; i++ {
+		go func() {
+			defer wg.Done()
+			for py := range rows {
+				y := float64(py)/h*(ymax-ymin) + ymin
+				for px := 0; px < width; px++ {
+					x := float64(px)/w*(xmax-xmin) + xmin
+					img.Set(px, py, mandelbrot(complex(x, y)))
+				}
+			}
+		}()
+	}
+	for py := 0; py < height; py++ {
+		rows <- py
+	}
+	close(rows)
+	wg.Wait()
+}
+
+func renderPixels(img *image.RGBA, xmin, ymin, xmax, ymax float64, width, height int) {
+	type pixel struct{ x, y int }
+	w := float64(width)
+	h := float64(height)
+	jobs := make(chan pixel, 1024)
+	var wg sync.WaitGroup
+	wg.Add(workerCount)
+	for i := 0; i < workerCount; i++ {
+		go func() {
+			defer wg.Done()
+			for p := range jobs {
+				y := float64(p.y)/h*(ymax-ymin) + ymin
+				x := float64(p.x)/w*(xmax-xmin) + xmin
+				img.Set(p.x, p.y, mandelbrot(complex(x, y)))
+			}
+		}()
+	}
+	for py := 0; py < height; py++ {
+		for px := 0; px < width; px++ {
+			jobs <- pixel{px, py}
+		}
+	}
+	close(jobs)
+	wg.Wait()
 }
 
 func mandelbrot(z complex128) color.Color {
@@ -52,42 +98,6 @@ func mandelbrot(z complex128) color.Color {
 		v = v*v + z
 		if cmplx.Abs(v) > 2 {
 			return color.Gray{255 - contrast*n}
-		}
-	}
-	return color.Black
-}
-
-//!-
-
-// Some other interesting functions:
-
-func acos(z complex128) color.Color {
-	v := cmplx.Acos(z)
-	blue := uint8(real(v)*128) + 127
-	red := uint8(imag(v)*128) + 127
-	return color.YCbCr{192, blue, red}
-}
-
-func sqrt(z complex128) color.Color {
-	v := cmplx.Sqrt(z)
-	blue := uint8(real(v)*128) + 127
-	red := uint8(imag(v)*128) + 127
-	return color.YCbCr{128, blue, red}
-}
-
-// f(x) = x^4 - 1
-//
-// z' = z - f(z)/f'(z)
-//
-//	= z - (z^4 - 1) / (4 * z^3)
-//	= z - (z - 1/z^3) / 4
-func newton(z complex128) color.Color {
-	const iterations = 37
-	const contrast = 7
-	for i := uint8(0); i < iterations; i++ {
-		z -= (z - 1/(z*z*z)) / 4
-		if cmplx.Abs(z*z*z*z-1) < 1e-6 {
-			return color.Gray{255 - contrast*i}
 		}
 	}
 	return color.Black
