@@ -4,15 +4,12 @@ import (
 	"image"
 	"image/color"
 	"math/cmplx"
-	"runtime"
 	"sync"
 )
 
-var workerCount = runtime.NumCPU()
-
 // Render computes a Mandelbrot image using either pixel or row based jobs.
 // It returns the generated image for benchmarking purposes.
-func Render(usePixelJobs bool) *image.RGBA {
+func Render(usePixelJobs bool, workerCount int) *image.RGBA {
 	const (
 		xmin, ymin, xmax, ymax = -2, -2, +2, +2
 		width, height          = 1024, 1024
@@ -21,9 +18,9 @@ func Render(usePixelJobs bool) *image.RGBA {
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 
 	if usePixelJobs {
-		renderPixels(img, xmin, ymin, xmax, ymax, width, height)
+		renderPixels(img, xmin, ymin, xmax, ymax, width, height, workerCount)
 	} else {
-		renderRows(img, xmin, ymin, xmax, ymax, width, height)
+		renderRows(img, xmin, ymin, xmax, ymax, width, height, workerCount)
 	}
 
 	return img
@@ -38,9 +35,9 @@ func RenderSequential() *image.RGBA {
 	)
 
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
-	for py := 0; py < height; py++ {
+	for py := range height {
 		y := float64(py)/height*(ymax-ymin) + ymin
-		for px := 0; px < width; px++ {
+		for px := range width {
 			x := float64(px)/width*(xmax-xmin) + xmin
 			img.Set(px, py, mandelbrot(complex(x, y)))
 		}
@@ -48,13 +45,13 @@ func RenderSequential() *image.RGBA {
 	return img
 }
 
-func renderRows(img *image.RGBA, xmin, ymin, xmax, ymax float64, width, height int) {
+func renderRows(img *image.RGBA, xmin, ymin, xmax, ymax float64, width, height, workerCount int) {
 	w := float64(width)
 	h := float64(height)
 	rows := make(chan int, height)
 	var wg sync.WaitGroup
 	wg.Add(workerCount)
-	for i := 0; i < workerCount; i++ {
+	for range workerCount {
 		go func() {
 			defer wg.Done()
 			for py := range rows {
@@ -66,21 +63,21 @@ func renderRows(img *image.RGBA, xmin, ymin, xmax, ymax float64, width, height i
 			}
 		}()
 	}
-	for py := 0; py < height; py++ {
+	for py := range height {
 		rows <- py
 	}
 	close(rows)
 	wg.Wait()
 }
 
-func renderPixels(img *image.RGBA, xmin, ymin, xmax, ymax float64, width, height int) {
+func renderPixels(img *image.RGBA, xmin, ymin, xmax, ymax float64, width, height, workerCount int) {
 	type pixel struct{ x, y int }
 	w := float64(width)
 	h := float64(height)
-	jobs := make(chan pixel, 1024)
+	jobs := make(chan pixel, width*height)
 	var wg sync.WaitGroup
 	wg.Add(workerCount)
-	for i := 0; i < workerCount; i++ {
+	for range workerCount {
 		go func() {
 			defer wg.Done()
 			for p := range jobs {
@@ -90,8 +87,8 @@ func renderPixels(img *image.RGBA, xmin, ymin, xmax, ymax float64, width, height
 			}
 		}()
 	}
-	for py := 0; py < height; py++ {
-		for px := 0; px < width; px++ {
+	for py := range height {
+		for px := range width {
 			jobs <- pixel{px, py}
 		}
 	}
